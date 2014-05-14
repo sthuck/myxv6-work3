@@ -112,7 +112,7 @@ growproc(int n)
 
   sz = proc->sz;
   if(n > 0){
-    if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
+    if((sz = allocuvm(proc->pgdir, sz, sz + n, PTE_W|PTE_U)) == 0)
       return -1;
   } else if(n < 0){
     if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
@@ -476,14 +476,14 @@ procdump(void)
     //can't USE just PTE_U flag because setupkvm uses walkpgdir, which marks all pages PTE_U.
     for (i = 0; i < NPDENTRIES/2; ++i) {  
       pde_t pde = p->pgdir[i];
-      if (pde & (PTE_U | PTE_P)) {
+      if ((pde & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
         cprintf("  pdir PTE %d %d:\n",i,PTE_ADDR(pde)>>12);
         pte_t* pteT = p2v(PTE_ADDR(pde));
         cprintf("    memory location of page table = %x\n",pteT);
         for (j = 0; j < NPTENTRIES; ++j) {
           pte_t pte = pteT[j];
-          if (pte & (PTE_U | PTE_P)) {
-            cprintf("    ptbl PTE %d,%d,%x\n",j,PTE_ADDR(pte)>>12,p2v(PTE_ADDR(pte)));
+          if ((pte & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
+            cprintf("    ptbl PTE %d,%d,%x,%x\n",j,PTE_ADDR(pte)>>12,p2v(PTE_ADDR(pte)),pte&0xFFF);
           }
         }
       }
@@ -491,11 +491,11 @@ procdump(void)
     cprintf("Page mappings:\n");
     for (i = 0; i < NPDENTRIES/2; ++i) {  
       pde_t pde = p->pgdir[i];
-      if (pde & (PTE_U | PTE_P)) {
+      if ((pde & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
         pte_t* pteT = p2v(PTE_ADDR(pde));
         for (j = 0; j < NPTENTRIES; ++j) {
           pte_t pte = pteT[j];
-          if (pte & (PTE_U | PTE_P)) {
+          if ((pte & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
             cprintf("%d ==> %d\n",i*NPTENTRIES+j,(PTE_ADDR(pte)/PGSIZE));
           }
         }

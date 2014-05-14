@@ -199,12 +199,12 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   uint i, pa, n;
   pte_t *pte;
 
-  if((uint) addr % PGSIZE != 0)
-    panic("loaduvm: addr must be page aligned");
+  //if((uint) addr % PGSIZE != 0)
+  //  panic("loaduvm: addr must be page aligned");
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, addr+i, 0)) == 0)
       panic("loaduvm: address should exist");
-    pa = PTE_ADDR(*pte);
+    pa = PTE_ADDR(*pte)+((uint)(addr+i)%PGSIZE);
     if(sz - i < PGSIZE)
       n = sz - i;
     else
@@ -218,7 +218,7 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
 int
-allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
+allocuvm(pde_t *pgdir, uint oldsz, uint newsz,int perm)
 {
   char *mem;
   uint a;
@@ -237,7 +237,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       return 0;
     }
     memset(mem, 0, PGSIZE);
-    mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
+    mappages(pgdir, (char*)a, PGSIZE, v2p(mem), perm);
   }
   return newsz;
 }
@@ -322,10 +322,13 @@ copyuvm(pde_t *pgdir, uint sz)
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
+    //copy permissions
+    int perm = *pte & 0xFFF;
+    //
     if((mem = kalloc()) == 0)
       goto bad;
     memmove(mem, (char*)p2v(pa), PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, v2p(mem), PTE_W|PTE_U) < 0)
+    if(mappages(d, (void*)i, PGSIZE, v2p(mem), perm) < 0)
       goto bad;
   }
   //disallow null

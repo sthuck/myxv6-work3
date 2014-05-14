@@ -41,7 +41,13 @@ exec(char *path, char **argv)
       continue;
     if(ph.memsz < ph.filesz)
       goto bad;
-    if((sz = allocuvm(pgdir, sz, ph.vaddr + ph.memsz)) == 0)
+    int perm = PTE_W|PTE_U;
+
+    //no write premission
+    if (!(ph.flags & ELF_PROG_FLAG_WRITE))
+      perm = PTE_U;
+
+    if((sz = allocuvm(pgdir, sz, ph.vaddr + ph.memsz,perm)) == 0)
       goto bad;
     if(loaduvm(pgdir, (char*)ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
@@ -52,7 +58,7 @@ exec(char *path, char **argv)
   // Allocate two pages at the next page boundary.
   // Make the first inaccessible.  Use the second as the user stack.
   sz = PGROUNDUP(sz);
-  if((sz = allocuvm(pgdir, sz, sz + 2*PGSIZE)) == 0)
+  if((sz = allocuvm(pgdir, sz, sz + 2*PGSIZE,PTE_W|PTE_U)) == 0)
     goto bad;
   clearpteu(pgdir, (char*)(sz - 2*PGSIZE));
   sp = sz;
@@ -86,6 +92,7 @@ exec(char *path, char **argv)
   //disallow null
   clearpteu(pgdir,0);
   // Commit to the user image.
+
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
   proc->sz = sz;
