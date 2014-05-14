@@ -56,11 +56,11 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-  
+
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-  
+
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -81,7 +81,7 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  
+
   p = allocproc();
   initproc = p;
   if((p->pgdir = setupkvm(kalloc)) == 0)
@@ -109,7 +109,7 @@ int
 growproc(int n)
 {
   uint sz;
-  
+
   sz = proc->sz;
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
@@ -154,7 +154,7 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
- 
+
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
@@ -346,12 +346,12 @@ forkret(void)
 
   if (first) {
     // Some initialization functions must be run in the context
-    // of a regular process (e.g., they call sleep), and thus cannot 
+    // of a regular process (e.g., they call sleep), and thus cannot
     // be run from main().
     first = 0;
     initlog();
   }
-  
+
   // Return to "caller", actually trapret (see allocproc).
 }
 
@@ -452,11 +452,11 @@ procdump(void)
   [RUNNING]   "run   ",
   [ZOMBIE]    "zombie"
   };
-  int i;
+  int i,j;
   struct proc *p;
   char *state;
   uint pc[10];
-  
+
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -470,8 +470,40 @@ procdump(void)
       for(i=0; i<10 && pc[i] != 0; i++)
         cprintf(" %p", pc[i]);
     }
-    cprintf("\n");
+    cprintf("\nPage tables:\n");
+    cprintf("  memory location of page directory = %x\n",p->pgdir);
+    //from page 0x8000000 it's kernel table. so from page directory 512 onward we don't check. 
+    //can't USE just PTE_U flag because setupkvm uses walkpgdir, which marks all pages PTE_U.
+    for (i = 0; i < NPDENTRIES/2; ++i) {  
+      pde_t pde = p->pgdir[i];
+      if (pde & (PTE_U | PTE_P)) {
+        cprintf("  pdir PTE %d %d:\n",i,PTE_ADDR(pde)>>12);
+        pte_t* pteT = p2v(PTE_ADDR(pde));
+        cprintf("    memory location of page table = %x\n",pteT);
+        for (j = 0; j < NPTENTRIES; ++j) {
+          pte_t pte = pteT[j];
+          if (pte & (PTE_U | PTE_P)) {
+            cprintf("    ptbl PTE %d,%d,%x\n",j,PTE_ADDR(pte)>>12,p2v(PTE_ADDR(pte)));
+          }
+        }
+      }
+    }
+    cprintf("Page mappings:\n");
+    for (i = 0; i < NPDENTRIES/2; ++i) {  
+      pde_t pde = p->pgdir[i];
+      if (pde & (PTE_U | PTE_P)) {
+        pte_t* pteT = p2v(PTE_ADDR(pde));
+        for (j = 0; j < NPTENTRIES; ++j) {
+          pte_t pte = pteT[j];
+          if (pte & (PTE_U | PTE_P)) {
+            cprintf("%d ==> %d\n",i*NPTENTRIES+j,(PTE_ADDR(pte)/PGSIZE));
+          }
+        }
+      }
+    }
+    
+
+    cprintf("\n"); //next proc
   }
+  cprintf("$ ");
 }
-
-

@@ -12,6 +12,7 @@ void foo() {
 int
 main(int argc, char *argv[])
 {
+	malloc(4096*2);
     foo();
   exit();
 }
