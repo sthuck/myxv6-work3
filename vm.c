@@ -328,6 +328,8 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, v2p(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
+  //disallow null
+  clearpteu(d,0);
   return d;
 
 bad:

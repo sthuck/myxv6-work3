@@ -82,6 +82,9 @@ exec(char *path, char **argv)
       last = s+1;
   safestrcpy(proc->name, last, sizeof(proc->name));
 
+
+  //disallow null
+  clearpteu(pgdir,0);
   // Commit to the user image.
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
