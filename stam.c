@@ -14,7 +14,8 @@ main(int argc, char *argv[])
 {
 	foo();
 	printf(1,"doing malloc");
-	malloc(4096*2);
+	//malloc(4096*2);
+	sbrk(4096*2);
     foo();
   exit();
 }
