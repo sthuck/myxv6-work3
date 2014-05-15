@@ -104,7 +104,7 @@ int             pipewrite(struct pipe*, char*, int);
 // proc.c
 struct proc*    copyproc(struct proc*);
 void            exit(void);
-int             fork(void);
+int             fork(int);
 int             growproc(int);
 int             kill(int);
 void            pinit(void);
@@ -116,6 +116,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void            do_copy_sheker_kolsheu(uint);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -161,6 +162,7 @@ void            uartintr(void);
 void            uartputc(int);
 
 // vm.c
+extern char**    counters;
 void            seginit(void);
 void            kvmalloc(void);
 void            vmenable(void);
@@ -171,11 +173,13 @@ int             deallocuvm(pde_t*, uint, uint);
 void            freevm(pde_t*);
 void            inituvm(pde_t*, char*, uint);
 int             loaduvm(pde_t*, char*, struct inode*, uint, uint);
-pde_t*          copyuvm(pde_t*, uint);
+pde_t*          copyuvm(pde_t*, uint,int);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
-
+void            initcounters(void);
+char*           getcount(uint pa);
+uint*           walkpgdir(pde_t *pgdir, const void *va, int alloc);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

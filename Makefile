@@ -166,8 +166,9 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_stam\
-	_stam2\
-	_stam3
+	_stam4
+#	_stam2\
+#	_stam3
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

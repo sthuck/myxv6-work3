@@ -10,6 +10,7 @@
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 struct segdesc gdt[NSEGS];
+char** counters;
 
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
@@ -39,10 +40,20 @@ seginit(void)
   proc = 0;
 }
 
+void
+initcounters() {
+  counters = (char**)kalloc();
+  int i = 0;
+  for (i = 0 ; i < 256 ;i++) {
+    counters[i]=kalloc();
+    memset(counters[i],1,PGSIZE);
+  }
+}
+
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
-static pte_t *
+pte_t *
 walkpgdir(pde_t *pgdir, const void *va, int alloc)
 {
   pde_t *pde;
@@ -265,6 +276,17 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       if(pa == 0)
         panic("kfree");
       char *v = p2v(pa);
+      //done delete if still shared - q4
+      if (*pte & PTE_COW ) {
+        char *count = getcount(pa);
+        (*count)--;
+        if (*count==0) {
+          kfree(v);
+          *pte = 0;
+          continue;
+        }
+      }
+      //end changes
       kfree(v);
       *pte = 0;
     }
@@ -307,7 +329,7 @@ clearpteu(pde_t *pgdir, char *uva)
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(pde_t *pgdir, uint sz,int cow)
 {
   pde_t *d;
   pte_t *pte;
@@ -322,7 +344,21 @@ copyuvm(pde_t *pgdir, uint sz)
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
-    //copy permissions
+    if (cow) {
+      //change original perms -q4
+      *pte &= ~PTE_W;
+      *pte |= PTE_COW;
+      //update counter;
+      char* count = getcount(pa);  //physical address refrence count
+      if (*count==0)
+        (*count)++;     //if first time shared - we have 2 proc using
+      (*count)++;       //else just one more proc
+      int perm = *pte & 0xFFF;
+      if(mappages(d, (void*)i, PGSIZE, pa, perm) < 0)  //no copy!
+        goto bad;
+      continue;
+    }
+    //copy permissions - q3
     int perm = *pte & 0xFFF;
     //
     if((mem = kalloc()) == 0)
@@ -331,7 +367,8 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, v2p(mem), perm) < 0)
       goto bad;
   }
-  //disallow null
+
+  //disallow null - q2
   clearpteu(d,0);
   return d;
 
@@ -339,6 +376,8 @@ bad:
   freevm(d);
   return 0;
 }
+
+
 
 //PAGEBREAK!
 // Map user virtual address to kernel address.
@@ -379,4 +418,11 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
+}
+
+char* getcount(uint pa) {
+  int m,n;
+  m = (pa>>12)/PGSIZE;
+  n = (pa>>12)%PGSIZE;
+  return &counters[m][n];
 }

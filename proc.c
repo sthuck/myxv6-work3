@@ -127,7 +127,7 @@ growproc(int n)
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
 int
-fork(void)
+fork(int cow)
 {
   int i, pid;
   struct proc *np;
@@ -137,7 +137,7 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+  if((np->pgdir = copyuvm(proc->pgdir, proc->sz,cow)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
@@ -160,6 +160,7 @@ fork(void)
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
+
 
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
@@ -472,9 +473,9 @@ procdump(void)
     }
     cprintf("\nPage tables:\n");
     cprintf("  memory location of page directory = %x\n",p->pgdir);
-    //from page 0x8000000 it's kernel table. so from page directory 512 onward we don't check. 
+    //from page 0x8000000 it's kernel table. so from page directory 512 onward we don't check.
     //can't USE just PTE_U flag because setupkvm uses walkpgdir, which marks all pages PTE_U.
-    for (i = 0; i < NPDENTRIES/2; ++i) {  
+    for (i = 0; i < NPDENTRIES/2; ++i) {
       pde_t pde = p->pgdir[i];
       if ((pde & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
         cprintf("  pdir PTE %d %d:\n",i,PTE_ADDR(pde)>>12);
@@ -489,7 +490,7 @@ procdump(void)
       }
     }
     cprintf("Page mappings:\n");
-    for (i = 0; i < NPDENTRIES/2; ++i) {  
+    for (i = 0; i < NPDENTRIES/2; ++i) {
       pde_t pde = p->pgdir[i];
       if ((pde & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
         pte_t* pteT = p2v(PTE_ADDR(pde));
@@ -501,9 +502,46 @@ procdump(void)
         }
       }
     }
-    
+
 
     cprintf("\n"); //next proc
   }
   cprintf("$ ");
+}
+void lookForMoreRefrences(uint va,pde_t oldpte);
+
+void do_copy_sheker_kolsheu(uint va) {
+
+  pte_t* pte = walkpgdir(proc->pgdir,(void*)va,0);
+  pte_t oldpte = *pte;
+  if (!pte)
+    panic("cow:Can't find page to copy");
+  char* mem = kalloc();
+  if (mem==0) {
+    cprintf("cow: out of memory, killing proc\n");
+    proc->killed=1;
+  }
+  memmove(mem,p2v(PTE_ADDR(*pte)),PGSIZE); //copy data from old page
+  *pte = v2p(mem) | PTE_U | PTE_P | PTE_W; //pointing our page directory to new page
+  char* count = getcount(PTE_ADDR(oldpte));
+  *count = *count -1;
+  if (*count==1)
+    lookForMoreRefrences(va,oldpte);
+}
+
+
+// if only 1 refrence left, we search for it, and disable the COW flag and add write flag
+void lookForMoreRefrences(uint va,pde_t oldpte) {
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == UNUSED || p->state == ZOMBIE || p->state == EMBRYO)
+      continue;
+    pte_t* pte = walkpgdir(p->pgdir,(void*)va,0);
+    if (PTE_ADDR(oldpte)==PTE_ADDR(*pte)) {
+      *pte &= ~PTE_COW;
+      *pte |= PTE_W;
+      break;   //only 1 refrence
+    }
+  }
+
 }
