@@ -458,7 +458,7 @@ procdump(void)
   char *state;
   uint pc[10];
 
-  for(p = &ptable.proc[2]; p < &ptable.proc[NPROC]; p++){
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
     if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
@@ -481,10 +481,10 @@ procdump(void)
         cprintf("  pdir PTE %d %d:\n",i,PTE_ADDR(pde)>>12);
         pte_t* pteT = p2v(PTE_ADDR(pde));
         cprintf("    memory location of page table = %x\n",pteT);
-        for (j = 0; j < 6; ++j) {
+        for (j = 0; j < NPTENTRIES; ++j) {
           pte_t pte = pteT[j];
-          if (1 || (pte & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
-            cprintf("    ptbl PTE %d,%d,%x,%x\n",j,PTE_ADDR(pte)>>12,p2v(PTE_ADDR(pte)),pte&0xFFF);
+          if ((pte & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
+            cprintf("    ptbl PTE %d,%d,%x\n",j,PTE_ADDR(pte)>>12,p2v(PTE_ADDR(pte)));
           }
         }
       }

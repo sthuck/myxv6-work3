@@ -81,11 +81,7 @@ trap(struct trapframe *tf)
     if (tf->err==7) {  //write fault in user space
       if (!proc)
         panic("Got page fault in user space but can't find proc");
-      procdump();
-      cprintf("=========need to change page\n");
       do_copy_sheker_kolsheu(rcr2());
-      cprintf("=========after change page\n");
-      procdump();
     }
     else
       goto velociraptor;  //http://xkcd.com/292/ :( :(
