@@ -13,8 +13,13 @@ main(int argc, char *argv[])
     printf(2,"bla %d %d\n",a,pid);
     exit();
   }
-  wait();
+  int b = 0;
+  for (b = 0 ; b<500;b++)
+    b++;
   printf(2,"bla %d %d\n",a,pid);
+  int c = uptime();
+  c = wait();
+  c++;
   exit();
 }
 
@@ -25,7 +30,7 @@ main(int argc, char *argv[])
 {
   int a = 200;
   cowfork();
-  printf(2,"bla %d %d\n",a);
+  printf(2,"bla %d %d\n",a,4);
   wait();
   exit();
 }

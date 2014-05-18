@@ -458,7 +458,7 @@ procdump(void)
   char *state;
   uint pc[10];
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+  for(p = &ptable.proc[2]; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
     if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
@@ -481,9 +481,9 @@ procdump(void)
         cprintf("  pdir PTE %d %d:\n",i,PTE_ADDR(pde)>>12);
         pte_t* pteT = p2v(PTE_ADDR(pde));
         cprintf("    memory location of page table = %x\n",pteT);
-        for (j = 0; j < NPTENTRIES; ++j) {
+        for (j = 0; j < 6; ++j) {
           pte_t pte = pteT[j];
-          if ((pte & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
+          if (1 || (pte & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
             cprintf("    ptbl PTE %d,%d,%x,%x\n",j,PTE_ADDR(pte)>>12,p2v(PTE_ADDR(pte)),pte&0xFFF);
           }
         }
@@ -497,7 +497,9 @@ procdump(void)
         for (j = 0; j < NPTENTRIES; ++j) {
           pte_t pte = pteT[j];
           if ((pte & (PTE_U | PTE_P)) == (PTE_U | PTE_P)) {
-            cprintf("%d ==> %d\n",i*NPTENTRIES+j,(PTE_ADDR(pte)/PGSIZE));
+            int is_cow = ((pte & PTE_COW)>0);
+            int is_readonly = ((pte & PTE_W) == 0);
+            cprintf("%d ==> %d,%c,%c\n",i*NPTENTRIES+j,(PTE_ADDR(pte)/PGSIZE),110+11*is_readonly,110+11*is_cow);
           }
         }
       }
@@ -527,6 +529,8 @@ void do_copy_sheker_kolsheu(uint va) {
   *count = *count -1;
   if (*count==1)
     lookForMoreRefrences(va,oldpte);
+  asm("movl %%cr3,%%eax \n\t"
+      "movl %%eax,%%cr3":::"%eax");
 }
 
 

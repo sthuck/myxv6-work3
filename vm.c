@@ -212,10 +212,23 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 
   //if((uint) addr % PGSIZE != 0)
   //  panic("loaduvm: addr must be page aligned");
-  for(i = 0; i < sz; i += PGSIZE){
+  i=0;
+  if ((uint)addr%PGSIZE!=0) {
+    if((pte = walkpgdir(pgdir, addr, 0)) == 0)
+      panic("loaduvm: address should exist");
+    pa = PTE_ADDR(*pte)+(uint)addr%PGSIZE;
+    n=PGROUNDUP((uint)addr)-(uint)addr;
+    if (n>sz)
+      n=sz;
+    if(readi(ip, p2v(pa), offset, n) != n)
+      return -1;
+    i=n;
+  }
+
+  for(; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, addr+i, 0)) == 0)
       panic("loaduvm: address should exist");
-    pa = PTE_ADDR(*pte)+((uint)(addr+i)%PGSIZE);
+    pa = PTE_ADDR(*pte);
     if(sz - i < PGSIZE)
       n = sz - i;
     else
@@ -277,14 +290,14 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
         panic("kfree");
       char *v = p2v(pa);
       //done delete if still shared - q4
-      if (*pte & PTE_COW ) {
+      if ((*pte & PTE_COW) != 0 ) {
         char *count = getcount(pa);
         (*count)--;
         if (*count==0) {
           kfree(v);
           *pte = 0;
-          continue;
         }
+        continue;
       }
       //end changes
       kfree(v);
