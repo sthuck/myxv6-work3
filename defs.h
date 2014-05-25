@@ -181,5 +181,6 @@ void            clearpteu(pde_t *pgdir, char *uva);
 void            initcounters(void);
 char*           getcount(uint pa);
 uint*           walkpgdir(pde_t *pgdir, const void *va, int alloc);
+int 			checkCow(uint va);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

@@ -7,7 +7,8 @@ void foo(void);
 int
 main(int argc, char *argv[])
 {
-	int pid = fork();
+	//int pid = fork();
+	int pid = cowfork();
 	if (pid==0) {
 		foo();
 		exit();

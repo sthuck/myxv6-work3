@@ -78,9 +78,7 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-    if (tf->err==7) {  //write fault in user space
-      if (!proc)
-        panic("Got page fault in user space but can't find proc");
+    if (tf->err==7 && proc && checkCow(rcr2())) {  //write fault in user space
       do_copy_sheker_kolsheu(rcr2());
     }
     else

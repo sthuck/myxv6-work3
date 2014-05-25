@@ -44,7 +44,7 @@ void
 initcounters() {
   counters = (char**)kalloc();
   int i = 0;
-  for (i = 0 ; i < 256 ;i++) {
+  for (i = 0 ; i < 128 ;i++) {
     counters[i]=kalloc();
     memset(counters[i],1,PGSIZE);
   }
@@ -290,18 +290,14 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
         panic("kfree");
       char *v = p2v(pa);
       //done delete if still shared - q4
-      if ((*pte & PTE_COW) != 0 ) {
-        char *count = getcount(pa);
-        (*count)--;
-        if (*count==0) {
+      //if ((*pte & PTE_COW) != 0 ) {
+      char *count = getcount(pa);
+        if (*count==1) {
           kfree(v);
           *pte = 0;
         }
-        continue;
-      }
-      //end changes
-      kfree(v);
-      *pte = 0;
+        else
+          (*count)--;
     }
   }
   return newsz;
@@ -359,8 +355,10 @@ copyuvm(pde_t *pgdir, uint sz,int cow)
     pa = PTE_ADDR(*pte);
     if (cow) {
       //change original perms -q4
-      *pte &= ~PTE_W;
-      *pte |= PTE_COW;
+      if (*pte & PTE_W) {  //if read-only already skip this
+        *pte &= ~PTE_W;
+        *pte |= PTE_COW;
+      }
       //update counter;
       char* count = getcount(pa);  //physical address refrence count
       if (*count==0)
@@ -438,4 +436,13 @@ char* getcount(uint pa) {
   m = (pa>>12)/PGSIZE;
   n = (pa>>12)%PGSIZE;
   return &counters[m][n];
+}
+
+
+int checkCow(uint va) {
+  pte_t* pte = walkpgdir(proc->pgdir,(void*)va,0);
+  if (*pte & PTE_COW)
+    return 1;
+  else
+    return 0;
 }
