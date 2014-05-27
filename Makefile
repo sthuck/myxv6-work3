@@ -168,8 +168,9 @@ UPROGS=\
 	_stam\
 	_stam4\
 	_stam2\
-	_stam3
-
+	_stam3\
+	_stam5 
+	
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
 

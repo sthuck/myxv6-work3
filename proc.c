@@ -525,8 +525,10 @@ void do_copy_sheker_kolsheu(uint va) {
   }
   memmove(mem,p2v(PTE_ADDR(*pte)),PGSIZE); //copy data from old page
   *pte = v2p(mem) | PTE_U | PTE_P | PTE_W; //pointing our page directory to new page
+  acquire(&counterslock);
   char* count = getcount(PTE_ADDR(oldpte));
   *count = *count -1;
+  release(&counterslock);
   if (*count==1)
     lookForMoreRefrences(va,oldpte);
   asm("movl %%cr3,%%eax \n\t"
@@ -534,7 +536,8 @@ void do_copy_sheker_kolsheu(uint va) {
 }
 
 
-// if only 1 refrence left, we search for it, and disable the COW flag and add write flag
+// if only 1 refrence left, we search for it, and disable the COW flag and add write 
+//no need to lock here, worst case will page fault again
 void lookForMoreRefrences(uint va,pde_t oldpte) {
   struct proc *p;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){

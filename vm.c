@@ -6,11 +6,13 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "spinlock.h"
 
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 struct segdesc gdt[NSEGS];
 char** counters;
+struct spinlock counterslock;
 
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
@@ -43,6 +45,7 @@ seginit(void)
 void
 initcounters() {
   counters = (char**)kalloc();
+  initlock(&counterslock,"memcounters");
   int i = 0;
   for (i = 0 ; i < 128 ;i++) {
     counters[i]=kalloc();
@@ -290,14 +293,15 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
         panic("kfree");
       char *v = p2v(pa);
       //done delete if still shared - q4
-      //if ((*pte & PTE_COW) != 0 ) {
+      acquire(&counterslock);
       char *count = getcount(pa);
-        if (*count==1) {
-          kfree(v);
-          *pte = 0;
-        }
-        else
-          (*count)--;
+      if (*count==1) {
+        kfree(v);
+        *pte = 0;
+      }
+      else
+        (*count)--;
+      release(&counterslock);
     }
   }
   return newsz;
@@ -360,10 +364,12 @@ copyuvm(pde_t *pgdir, uint sz,int cow)
         *pte |= PTE_COW;
       }
       //update counter;
+      acquire(&counterslock);
       char* count = getcount(pa);  //physical address refrence count
       if (*count==0)
         (*count)++;     //if first time shared - we have 2 proc using
       (*count)++;       //else just one more proc
+      release(&counterslock);
       int perm = *pte & 0xFFF;
       if(mappages(d, (void*)i, PGSIZE, pa, perm) < 0)  //no copy!
         goto bad;

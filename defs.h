@@ -163,6 +163,7 @@ void            uartputc(int);
 
 // vm.c
 extern char**    counters;
+extern struct spinlock counterslock;
 void            seginit(void);
 void            kvmalloc(void);
 void            vmenable(void);
