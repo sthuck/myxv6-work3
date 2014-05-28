@@ -3,22 +3,24 @@
 #include "user.h"
 
 
+int c = 5;
 int
 main(int argc, char *argv[])
 {
-  int i = 0;
   int a = 200;
-  int pid = cowfork();
+  int pid = fork();
+  int* b = (int*)=malloc(4);
+  *b=5;
   if (pid==0) {
-    a=100;
-    for (i=0;i<2000000000;i++)
-    ;
-    printf(2,"bla1 %d %d\n",a,pid);
+  	c=6;
+  	*b=6;
+    printf(2,"son== %d %d\n",a,pid);
     exit();
   }
-  for (i=0;i<2000000000;i++)
-    ;
+  *b=7;
+  c=7;
+  a=100;
   wait();
-  printf(2,"bla %d %d\n",a,pid);
+  printf(2,"dad %d %d\n",a,pid);
   exit();
 }

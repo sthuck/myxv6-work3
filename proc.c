@@ -341,6 +341,8 @@ yield(void)
 void
 forkret(void)
 {
+        asm("movl %%cr3,%%eax \n\t"
+      "movl %%eax,%%cr3":::"%eax");
   static int first = 1;
   // Still holding ptable.lock from scheduler.
   release(&ptable.lock);
