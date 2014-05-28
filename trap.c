@@ -79,6 +79,7 @@ trap(struct trapframe *tf)
     break;
   case T_PGFLT:
     if (tf->err==7 && proc && checkCow(rcr2())) {  //write fault in user space
+      //cprintf("got page fault\n");
       do_copy_sheker_kolsheu(rcr2());
     }
     else
